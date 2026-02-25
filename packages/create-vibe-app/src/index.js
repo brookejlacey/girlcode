@@ -29,41 +29,34 @@ const BG_MAGENTA = '\x1b[45m';
 // ── Welcome banner ──────────────────────────────────────────────────────
 
 function printBanner() {
+  const IW = 46; // inner width between ║ borders
+  const border = '═'.repeat(IW);
+  const empty = ' '.repeat(IW);
+
+  const art = [
+    '████ █ ████ █      ████ ████ ███  ████',
+    '█    █ █  █ █      █    █  █ █  █ █   ',
+    '█ ██ █ ████ █      █    █  █ █  █ ████',
+    '█  █ █ █ █  █      █    █  █ █  █ █   ',
+    '████ █ █  █ ████   ████ ████ ███  ████',
+  ];
+
+  const ver = 'create-vibe-app v1.0.0';
+
   console.log('');
-  console.log(
-    `${MAGENTA}${BOLD}  ╔══════════════════════════════════════════════════════╗${RESET}`
-  );
-  console.log(
-    `${MAGENTA}${BOLD}  ║                                                      ║${RESET}`
-  );
-  console.log(
-    `${MAGENTA}${BOLD}  ║${RESET}   ${WHITE}${BOLD}   __ _  _      _    ___            _        ${RESET}  ${MAGENTA}${BOLD}║${RESET}`
-  );
-  console.log(
-    `${MAGENTA}${BOLD}  ║${RESET}   ${WHITE}${BOLD}  / _(_)| |    | |  / __|  ___    __| | ___   ${RESET}  ${MAGENTA}${BOLD}║${RESET}`
-  );
-  console.log(
-    `${MAGENTA}${BOLD}  ║${RESET}   ${WHITE}${BOLD} | |_| || |_   | | | (__  / _ \\  / _\` |/ -_)  ${RESET}  ${MAGENTA}${BOLD}║${RESET}`
-  );
-  console.log(
-    `${MAGENTA}${BOLD}  ║${RESET}   ${WHITE}${BOLD}  \\__, ||_|    |_|  \\___|\\___/  \\__,_|\\___|  ${RESET}  ${MAGENTA}${BOLD}║${RESET}`
-  );
-  console.log(
-    `${MAGENTA}${BOLD}  ║${RESET}   ${WHITE}${BOLD}  |___/  ${CYAN}create-vibe-app v1.0.0${RESET}               ${MAGENTA}${BOLD}║${RESET}`
-  );
-  console.log(
-    `${MAGENTA}${BOLD}  ║                                                      ║${RESET}`
-  );
-  console.log(
-    `${MAGENTA}${BOLD}  ╚══════════════════════════════════════════════════════╝${RESET}`
-  );
+  console.log(`${MAGENTA}${BOLD}  ╔${border}╗${RESET}`);
+  console.log(`${MAGENTA}${BOLD}  ║${empty}║${RESET}`);
+  for (const line of art) {
+    const pad = ' '.repeat(IW - 3 - line.length);
+    console.log(`${MAGENTA}${BOLD}  ║${RESET}   ${WHITE}${BOLD}${line}${RESET}${pad}${MAGENTA}${BOLD}║${RESET}`);
+  }
+  console.log(`${MAGENTA}${BOLD}  ║${empty}║${RESET}`);
+  console.log(`${MAGENTA}${BOLD}  ║${RESET}   ${CYAN}${ver}${RESET}${' '.repeat(IW - 3 - ver.length)}${MAGENTA}${BOLD}║${RESET}`);
+  console.log(`${MAGENTA}${BOLD}  ║${empty}║${RESET}`);
+  console.log(`${MAGENTA}${BOLD}  ╚${border}╝${RESET}`);
   console.log('');
-  console.log(
-    `  ${DIM}Set up your vibecoded app for production.${RESET}`
-  );
-  console.log(
-    `  ${DIM}Powered by Girl Code | girlcode.technology${RESET}`
-  );
+  console.log(`  ${DIM}Set up your vibecoded app for production.${RESET}`);
+  console.log(`  ${DIM}Powered by Girl Code | girlcode.technology${RESET}`);
   console.log('');
 }
 

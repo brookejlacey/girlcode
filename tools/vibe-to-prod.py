@@ -75,19 +75,33 @@ C = Colors
 
 def banner():
     """Print the Girl Code banner."""
-    art = rf"""
-{C.PINK}{C.BOLD}
-    _____ _      _    ____          _
-   / ____(_)    | |  / ___|___   __| | ___
-  | |  __ _ _ __| | | |   / _ \ / _` |/ _ \
-  | |_| | | '__| | | |__| (_) | (_| |  __/
-   \_____|_|_|  |_|  \____\___/ \__,_|\___|
-{C.RESET}
-{C.MAGENTA}  Vibe to Prod -- Get your project production-ready!{C.RESET}
-{C.GRAY}  Powered by Girl Code | girlcode.technology{C.RESET}
-{C.GRAY}  Fractional CTO & Tech Consulting{C.RESET}
-"""
-    print(art)
+    IW = 46
+    border = "═" * IW
+    empty = " " * IW
+    art_lines = [
+        "████ █ ████ █      ████ ████ ███  ████",
+        "█    █ █  █ █      █    █  █ █  █ █   ",
+        "█ ██ █ ████ █      █    █  █ █  █ ████",
+        "█  █ █ █ █  █      █    █  █ █  █ █   ",
+        "████ █ █  █ ████   ████ ████ ███  ████",
+    ]
+    ver = "vibe-to-prod v1.0.0"
+
+    print()
+    print(f"{C.PINK}{C.BOLD}  ╔{border}╗{C.RESET}")
+    print(f"{C.PINK}{C.BOLD}  ║{empty}║{C.RESET}")
+    for line in art_lines:
+        pad = " " * (IW - 3 - len(line))
+        print(f"{C.PINK}{C.BOLD}  ║{C.RESET}   {C.WHITE}{C.BOLD}{line}{C.RESET}{pad}{C.PINK}{C.BOLD}║{C.RESET}")
+    print(f"{C.PINK}{C.BOLD}  ║{empty}║{C.RESET}")
+    vpad = " " * (IW - 3 - len(ver))
+    print(f"{C.PINK}{C.BOLD}  ║{C.RESET}   {C.CYAN}{ver}{C.RESET}{vpad}{C.PINK}{C.BOLD}║{C.RESET}")
+    print(f"{C.PINK}{C.BOLD}  ║{empty}║{C.RESET}")
+    print(f"{C.PINK}{C.BOLD}  ╚{border}╝{C.RESET}")
+    print()
+    print(f"  {C.GRAY}Get your vibecoded app production-ready.{C.RESET}")
+    print(f"  {C.GRAY}Powered by Girl Code | girlcode.technology{C.RESET}")
+    print()
 
 
 def heading(text):
