@@ -1,0 +1,37 @@
+{
+  "name": "create-vibe-app",
+  "version": "1.0.0",
+  "description": "Set up your vibecoded app for production — powered by Girl Code",
+  "type": "module",
+  "bin": {
+    "create-vibe-app": "./bin/cli.js"
+  },
+  "main": "./src/index.js",
+  "scripts": {
+    "start": "node bin/cli.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "vibecoding",
+    "scaffold",
+    "cli",
+    "girl-code",
+    "deploy",
+    "beginner-friendly"
+  ],
+  "author": "Girl Code (girlcode.technology)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/girlcode-technology/girlcode",
+    "directory": "packages/create-vibe-app"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md"
+  ]
+}

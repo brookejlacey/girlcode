@@ -23,6 +23,12 @@ export default function Home() {
               About
             </a>
             <a
+              href="/launch"
+              className="text-muted transition-colors hover:text-foreground"
+            >
+              Launch
+            </a>
+            <a
               href="#intake"
               className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent-light"
             >
