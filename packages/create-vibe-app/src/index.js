@@ -5,9 +5,17 @@
  * file generation, and the final "next steps" output.
  */
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { detectStack, summarizeStack } from './detect.js';
-import { runPrompts, closePrompts } from './prompts.js';
+import { runPrompts, closePrompts, confirm } from './prompts.js';
 import { generateFiles } from './generate.js';
+
+// ── Read version dynamically from package.json ─────────────────────────
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
 // ── ANSI colour codes ───────────────────────────────────────────────────
 
@@ -29,8 +37,8 @@ const BG_MAGENTA = '\x1b[45m';
 // ── Welcome banner ──────────────────────────────────────────────────────
 
 function printBanner() {
-  const IW = 46; // inner width between ║ borders
-  const border = '═'.repeat(IW);
+  const IW = 46; // inner width between borders
+  const border = '='.repeat(IW);
   const empty = ' '.repeat(IW);
 
   const art = [
@@ -41,17 +49,18 @@ function printBanner() {
     '████ █ █  █ ████   ████ ████ ███  ████',
   ];
 
-  const ver = 'create-vibe-app v1.0.0';
+  const ver = `create-vibe-app v${pkg.version}`;
 
   console.log('');
   console.log(`${MAGENTA}${BOLD}  ╔${border}╗${RESET}`);
   console.log(`${MAGENTA}${BOLD}  ║${empty}║${RESET}`);
   for (const line of art) {
-    const pad = ' '.repeat(IW - 3 - line.length);
+    const pad = ' '.repeat(Math.max(0, IW - 3 - line.length));
     console.log(`${MAGENTA}${BOLD}  ║${RESET}   ${WHITE}${BOLD}${line}${RESET}${pad}${MAGENTA}${BOLD}║${RESET}`);
   }
   console.log(`${MAGENTA}${BOLD}  ║${empty}║${RESET}`);
-  console.log(`${MAGENTA}${BOLD}  ║${RESET}   ${CYAN}${ver}${RESET}${' '.repeat(IW - 3 - ver.length)}${MAGENTA}${BOLD}║${RESET}`);
+  const verPad = ' '.repeat(Math.max(0, IW - 3 - ver.length));
+  console.log(`${MAGENTA}${BOLD}  ║${RESET}   ${CYAN}${ver}${RESET}${verPad}${MAGENTA}${BOLD}║${RESET}`);
   console.log(`${MAGENTA}${BOLD}  ║${empty}║${RESET}`);
   console.log(`${MAGENTA}${BOLD}  ╚${border}╝${RESET}`);
   console.log('');
@@ -90,7 +99,7 @@ function printDetection(detection) {
   // Package manager
   if (detection.packageManager) {
     console.log(
-      `  ${DIM}Pkg mgr:${RESET}   ${WHITE}${detection.packageManager}${RESET}`
+      `  ${DIM}Package manager:${RESET} ${WHITE}${detection.packageManager}${RESET}`
     );
   }
 
@@ -118,10 +127,22 @@ function printDetection(detection) {
   }
 }
 
+// ── Determine the correct .env target filename ──────────────────────────
+
+function envTargetFile(config) {
+  // Next.js uses .env.local by convention
+  if (config.frameworks && config.frameworks.includes('Next.js')) {
+    return '.env.local';
+  }
+  // Python, Go, and most other frameworks use .env
+  return '.env';
+}
+
 // ── Next steps ──────────────────────────────────────────────────────────
 
 function printNextSteps(config, result) {
   const { created, skipped } = result;
+  const envFile = envTargetFile(config);
 
   // Summary
   console.log(
@@ -180,7 +201,7 @@ function printNextSteps(config, result) {
     `  ${WHITE}${BOLD}${step}.${RESET} Set up your environment variables:`
   );
   console.log(
-    `     Copy ${CYAN}.env.example${RESET} to ${CYAN}.env.local${RESET} and fill in the values.`
+    `     Copy ${CYAN}.env.example${RESET} to ${CYAN}${envFile}${RESET} and fill in the values.`
   );
   console.log('');
   step++;
@@ -194,16 +215,16 @@ function printNextSteps(config, result) {
       `     ${UNDERLINE}${BLUE}https://supabase.com/dashboard/new${RESET}`
     );
     console.log(
-      `     Copy the project URL and anon key into ${CYAN}.env.local${RESET}.`
+      `     Copy the project URL and anon key into ${CYAN}${envFile}${RESET}.`
     );
     console.log('');
     step++;
-  } else if (config.database === 'planetscale') {
+  } else if (config.database === 'turso') {
     console.log(
-      `  ${WHITE}${BOLD}${step}.${RESET} Create a PlanetScale database:`
+      `  ${WHITE}${BOLD}${step}.${RESET} Create a Turso database (free tier available):`
     );
     console.log(
-      `     ${UNDERLINE}${BLUE}https://planetscale.com${RESET}`
+      `     ${UNDERLINE}${BLUE}https://turso.tech${RESET}`
     );
     console.log('');
     step++;
@@ -283,7 +304,7 @@ function printNextSteps(config, result) {
     `  ${WHITE}${BOLD}${step}.${RESET} Add your environment variables to your hosting platform.`
   );
   console.log(
-    `     (Every value from ${CYAN}.env.local${RESET} needs to be added there too.)`
+    `     (Every value from ${CYAN}${envFile}${RESET} needs to be added there too.)`
   );
   console.log('');
   step++;
@@ -331,6 +352,33 @@ export async function run() {
   // Detect stack
   const detection = detectStack(process.cwd());
   printDetection(detection);
+
+  // ── Project directory validation (#18) ──────────────────────────────
+  const looksEmpty =
+    detection.language === 'Unknown' &&
+    detection.frameworks.length === 0 &&
+    detection.tools.length === 0;
+
+  if (looksEmpty) {
+    console.log('');
+    console.log(
+      `  ${YELLOW}${BOLD}This directory doesn't look like a project.${RESET}`
+    );
+    console.log(
+      `  ${YELLOW}Are you sure you're in the right folder?${RESET}`
+    );
+    const proceed = await confirm(
+      'Continue anyway?',
+      false
+    );
+    if (!proceed) {
+      console.log(
+        `\n  ${DIM}No worries! cd into your project directory and try again.${RESET}\n`
+      );
+      closePrompts();
+      return;
+    }
+  }
 
   // Interactive prompts
   let config;

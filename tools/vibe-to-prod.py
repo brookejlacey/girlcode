@@ -22,6 +22,26 @@ import webbrowser
 from pathlib import Path
 from datetime import datetime
 
+__version__ = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Force UTF-8 output on Windows (needed for Unicode box/block characters)
+# ---------------------------------------------------------------------------
+
+if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, OSError):
+        # Python < 3.7 or non-reconfigurable stream — wrap instead
+        import io
+        sys.stdout = io.TextIOWrapper(
+            sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True
+        )
+        sys.stderr = io.TextIOWrapper(
+            sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True
+        )
+
 
 # ---------------------------------------------------------------------------
 # Terminal colors (works on modern Windows 10+, Mac, and Linux)
@@ -85,7 +105,7 @@ def banner():
         "█  █ █ █ █  █      █    █  █ █  █ █   ",
         "████ █ █  █ ████   ████ ████ ███  ████",
     ]
-    ver = "vibe-to-prod v1.0.0"
+    ver = f"vibe-to-prod v{__version__}"
 
     print()
     print(f"{C.PINK}{C.BOLD}  ╔{border}╗{C.RESET}")
@@ -187,7 +207,14 @@ def pause(message="Press Enter to continue..."):
 
 
 def typewrite(text, delay=0.01):
-    """Print text character by character for effect."""
+    """Print text character by character for effect.
+
+    Only animates when stdout is a TTY (interactive terminal).
+    Otherwise prints immediately.
+    """
+    if not sys.stdout.isatty():
+        print(text)
+        return
     for char in text:
         sys.stdout.write(char)
         sys.stdout.flush()
@@ -256,7 +283,7 @@ class ProjectStack:
                 (".rs", "Rust", "Rust"),
                 (".go", "Go", "Go"),
             ]:
-                if list(self.dir.glob(f"*{ext}")) or list(self.dir.glob(f"**/*{ext}")):
+                if list(self.dir.glob(f"*{ext}")) or next(self.dir.glob(f"**/*{ext}"), None):
                     self.languages.append(lang)
                     if not self.runtime:
                         self.runtime = rt
@@ -269,6 +296,9 @@ class ProjectStack:
             return None
         try:
             return json.loads(filepath.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            warn(f"{filename} exists but has invalid JSON: {e}")
+            return None
         except Exception:
             return None
 
@@ -317,7 +347,8 @@ class ProjectStack:
             self.has_typescript = True
             if "TypeScript" not in self.languages:
                 self.languages.append("TypeScript")
-            self.detected_files.append("tsconfig.json")
+            if self._file_exists("tsconfig.json"):
+                self.detected_files.append("tsconfig.json")
 
         # Frameworks
         if "next" in all_deps:
@@ -327,11 +358,13 @@ class ProjectStack:
             self.frameworks.append("React")
         if "vue" in all_deps:
             self.frameworks.append("Vue")
+            self.port = "5173"
         if "nuxt" in all_deps:
             self.frameworks.append("Nuxt")
             self.port = "3000"
         if "svelte" in all_deps or "@sveltejs/kit" in all_deps:
             self.frameworks.append("SvelteKit" if "@sveltejs/kit" in all_deps else "Svelte")
+            self.port = "5173"
         if "express" in all_deps:
             self.frameworks.append("Express")
         if "fastify" in all_deps:
@@ -353,8 +386,17 @@ class ProjectStack:
         if "@supabase/supabase-js" in all_deps or "@supabase/ssr" in all_deps:
             self.has_supabase = True
             self.database = "supabase"
-            self.env_vars["NEXT_PUBLIC_SUPABASE_URL"] = "Your Supabase project URL (find in Supabase dashboard > Settings > API)"
-            self.env_vars["NEXT_PUBLIC_SUPABASE_ANON_KEY"] = "Your Supabase anon/public key (find in Supabase dashboard > Settings > API)"
+            # Use the correct public env var prefix for the detected framework
+            if "next" in all_deps:
+                sb_prefix = "NEXT_PUBLIC_"
+            elif "vue" in all_deps or "nuxt" in all_deps:
+                sb_prefix = "VITE_"
+            elif "@sveltejs/kit" in all_deps or "svelte" in all_deps:
+                sb_prefix = "PUBLIC_"
+            else:
+                sb_prefix = ""
+            self.env_vars[f"{sb_prefix}SUPABASE_URL"] = "Your Supabase project URL (find in Supabase dashboard > Settings > API)"
+            self.env_vars[f"{sb_prefix}SUPABASE_ANON_KEY"] = "Your Supabase anon/public key (find in Supabase dashboard > Settings > API)"
 
         if "prisma" in all_deps or "@prisma/client" in all_deps:
             self.has_prisma = True
@@ -439,6 +481,51 @@ class ProjectStack:
             except Exception:
                 pass
 
+        # Also parse pyproject.toml for dependencies
+        if has_pyproject:
+            try:
+                pyproject_text = (self.dir / "pyproject.toml").read_text(encoding="utf-8")
+                in_poetry_deps = False
+                in_deps_list = False
+                for line in pyproject_text.splitlines():
+                    stripped = line.strip()
+                    # Detect [tool.poetry.dependencies] table
+                    if stripped == "[tool.poetry.dependencies]":
+                        in_poetry_deps = True
+                        in_deps_list = False
+                        continue
+                    # Detect start of [project] dependencies = [...] list
+                    if stripped.startswith("dependencies") and "=" in stripped:
+                        # Could be: dependencies = ["django>=4.0", ...]
+                        # or multi-line: dependencies = [
+                        rest = stripped.split("=", 1)[1].strip()
+                        if "[" in rest:
+                            in_deps_list = True
+                            # Parse any packages on this same line
+                            rest = rest.strip("[] ")
+                    # New section header ends current section
+                    if stripped.startswith("[") and stripped.endswith("]"):
+                        if stripped != "[tool.poetry.dependencies]":
+                            in_poetry_deps = False
+                            in_deps_list = False
+                        continue
+                    if in_deps_list:
+                        if "]" in stripped:
+                            in_deps_list = False
+                        # Handle list-style: "django>=4.0",
+                        if stripped.startswith('"') or stripped.startswith("'"):
+                            pkg = stripped.strip("\"', ")
+                            for sep in (">=", "<=", "!=", "==", ">", "<", "~=", "[", ";"):
+                                pkg = pkg.split(sep)[0]
+                            deps_text += " " + pkg.strip().lower()
+                    elif in_poetry_deps:
+                        # Handle table-style: django = "^4.0"
+                        if "=" in stripped and not stripped.startswith("#"):
+                            pkg = stripped.split("=")[0].strip().strip("\"'")
+                            deps_text += " " + pkg.strip().lower()
+            except Exception:
+                pass
+
         if "django" in deps_text:
             self.frameworks.append("Django")
             self.port = "8000"
@@ -496,7 +583,7 @@ class ProjectStack:
         self.dev_command = self.dev_command or "cargo run"
         self.build_command = "cargo build --release"
 
-        self.extra_gitignore.extend(["target/", "Cargo.lock"])
+        self.extra_gitignore.extend(["target/"])
 
     def _detect_go(self):
         """Detect Go projects."""
@@ -522,8 +609,8 @@ class ProjectStack:
         """Detect common files and set defaults."""
         # Default env vars that almost every project needs
         # (only if we detected something)
-        if self.runtime:
-            self.env_vars.setdefault("NODE_ENV", "development") if self.runtime == "Node.js" else None
+        if self.runtime == "Node.js":
+            self.env_vars.setdefault("NODE_ENV", "development")
 
         # Supabase directory
         if (self.dir / "supabase").is_dir():
@@ -626,7 +713,10 @@ def generate_claude_md(stack, project_name):
 
 ```bash
 # Copy the example env file
+# Mac/Linux:
 cp .env.example .env
+# Windows:
+copy .env.example .env
 
 # Then open .env and fill in your real values
 ```
@@ -803,7 +893,8 @@ def generate_env_example(stack):
         "# ============================================",
         "#",
         "# Copy this file to .env and fill in your real values:",
-        f"#   cp .env.example .env",
+        "#   Mac/Linux:  cp .env.example .env",
+        "#   Windows:    copy .env.example .env",
         "#",
         "# IMPORTANT: Never commit .env to git! It contains secrets.",
         "#",
@@ -847,7 +938,7 @@ def generate_env_example(stack):
         lines.append(f"# --- {cat_name} ---")
         for name, desc in vars_list:
             lines.append(f"# {desc}")
-            lines.append(f"{name}=")
+            lines.append(f"{name}=your-value-here")
             lines.append("")
 
     return "\n".join(lines)
@@ -979,10 +1070,12 @@ def generate_contributing_md(stack, project_name):
     3. **A GitHub account**
        - Sign up: https://github.com/join
 
-    {"4. **Node.js** installed (version 18 or higher)" if stack.runtime == "Node.js" else ""}
-    {"   - Download: https://nodejs.org" if stack.runtime == "Node.js" else ""}
-    {"4. **Python** installed (version 3.8 or higher)" if stack.runtime == "Python" else ""}
-    {"   - Download: https://www.python.org/downloads/" if stack.runtime == "Python" else ""}
+    {chr(10).join(filter(None, [
+        "4. **Node.js** installed (version 18 or higher)" if stack.runtime == "Node.js" else "",
+        "   - Download: https://nodejs.org" if stack.runtime == "Node.js" else "",
+        "4. **Python** installed (version 3.8 or higher)" if stack.runtime == "Python" else "",
+        "   - Download: https://www.python.org/downloads/" if stack.runtime == "Python" else "",
+    ]))}
 
     ---
 
@@ -1113,7 +1206,7 @@ def generate_contributing_md(stack, project_name):
     - We're here to help!
 
     ### The live site is broken
-    - Check Vercel (or your hosting dashboard) for deployment status
+    - Check {"Vercel" if any(f in stack.frameworks for f in ("Next.js", "React", "Vue", "Nuxt", "SvelteKit", "Svelte", "Astro", "Remix")) else "Railway, Render," if stack.runtime == "Python" else "your"} (or your hosting dashboard) for deployment status
     - Recent deployments can be rolled back with one click
     - Contact your Girl Code team immediately
 
@@ -1184,7 +1277,7 @@ def walkthrough_accounts(stack):
             info("Could not open browser. Visit https://github.com/new")
 
     # -- Supabase --
-    if stack.has_supabase or stack.database in (None, "supabase"):
+    if stack.has_supabase or stack.database == "supabase":
         subheading("2. Supabase (your database)")
         info("Supabase gives you a free PostgreSQL database with a nice dashboard.")
         info("It also handles authentication, file storage, and more!")
@@ -1209,7 +1302,8 @@ def walkthrough_accounts(stack):
                 info("Could not open browser. Visit https://supabase.com/dashboard")
 
     # -- Vercel --
-    if "Next.js" in stack.frameworks or "React" in stack.frameworks or not stack.frameworks:
+    web_frameworks = ("Next.js", "React", "Vue", "Nuxt", "SvelteKit", "Svelte", "Astro", "Remix", "Gatsby")
+    if any(f in stack.frameworks for f in web_frameworks):
         step_num = "3" if stack.has_supabase else "2"
         subheading(f"{step_num}. Vercel (hosting / deployment)")
         info("Vercel makes deploying your app as easy as pushing to GitHub.")
@@ -1263,12 +1357,12 @@ def detect_project_directory():
     warn("Could not auto-detect a project in the current directory.")
     print()
     info("Please drag your project folder into this window, or type the path:")
-    path = ask_text("Project folder path", default=str(cwd))
-    p = Path(path.strip().strip('"').strip("'"))
-    if p.is_dir():
-        return p
-    error(f"'{p}' is not a valid directory.")
-    return cwd
+    while True:
+        path = ask_text("Enter the path to your project")
+        p = Path(path.strip().strip('"').strip("'"))
+        if p.is_dir():
+            return p
+        error(f"'{p}' is not a valid directory. Please try again.")
 
 
 def main():

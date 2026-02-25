@@ -1,6 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import IntakeForm from "@/components/IntakeForm";
 
 export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen font-sans">
       {/* Nav */}
@@ -35,13 +40,60 @@ export default function Home() {
               Work With Us
             </a>
           </div>
-          <a
-            href="#intake"
-            className="rounded-lg bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent-light sm:hidden"
+          {/* Mobile hamburger */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted transition-colors hover:text-foreground sm:hidden"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
           >
-            Work With Us
-          </a>
+            {mobileMenuOpen ? (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="border-t border-border bg-background px-6 py-4 sm:hidden">
+            <div className="flex flex-col gap-4 text-sm">
+              <a
+                href="#services"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-muted transition-colors hover:text-foreground"
+              >
+                Services
+              </a>
+              <a
+                href="#about"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-muted transition-colors hover:text-foreground"
+              >
+                About
+              </a>
+              <a
+                href="/launch"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-muted transition-colors hover:text-foreground"
+              >
+                Launch
+              </a>
+              <a
+                href="#intake"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg bg-accent px-4 py-2 text-center text-white transition-colors hover:bg-accent-light"
+              >
+                Work With Us
+              </a>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero */}
@@ -270,7 +322,7 @@ export default function Home() {
           <p className="text-sm text-muted">
             &copy; {new Date().getFullYear()} Girl Code. All rights reserved.
           </p>
-          <p className="font-mono text-sm text-muted">girlcode.technology</p>
+          <a href="https://girlcode.technology" className="font-mono text-sm text-muted hover:text-foreground transition-colors">girlcode.technology</a>
         </div>
       </footer>
     </div>

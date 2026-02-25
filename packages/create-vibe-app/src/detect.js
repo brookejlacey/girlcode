@@ -70,6 +70,9 @@ const JS_FRAMEWORK_MAP = [
   { keys: ['express'], name: 'Express' },
   { keys: ['fastify'], name: 'Fastify' },
   { keys: ['hono'], name: 'Hono' },
+  { keys: ['expo'], name: 'Expo' },
+  { keys: ['solid-js'], name: 'Solid.js' },
+  { keys: ['electron'], name: 'Electron' },
 ];
 
 const JS_TOOLS_MAP = [
@@ -83,6 +86,8 @@ const JS_TOOLS_MAP = [
   { keys: ['@clerk/nextjs', '@clerk/clerk-sdk-node'], name: 'Clerk Auth' },
   { keys: ['next-auth', '@auth/core'], name: 'NextAuth / Auth.js' },
   { keys: ['@trpc/server', '@trpc/client'], name: 'tRPC' },
+  { keys: ['convex'], name: 'Convex' },
+  { keys: ['zustand'], name: 'Zustand' },
 ];
 
 const PY_FRAMEWORK_MAP = [
@@ -188,6 +193,11 @@ export function detectStack(dir = process.cwd()) {
       ) {
         result.tools.push('TypeScript');
       }
+
+      // shadcn/ui detection via components.json
+      if (existsSync(join(dir, 'components.json'))) {
+        result.tools.push('shadcn/ui');
+      }
     }
 
     // Package manager detection
@@ -226,16 +236,40 @@ export function detectStack(dir = process.cwd()) {
         .map((l) => l.split(/[=<>!~]/)[0].trim().toLowerCase());
     }
 
-    // Simple pyproject.toml dependency extraction (no TOML parser needed)
+    // Improved pyproject.toml dependency extraction (#9)
+    // Only scan lines that look like dependency declarations,
+    // skipping section headers, comments, and metadata fields.
     if (existsSync(pyprojectPath)) {
       try {
         const tomlRaw = readFileSync(pyprojectPath, 'utf-8');
-        // Grab anything that looks like a dependency name inside brackets
-        const depMatches = tomlRaw.match(/"([a-zA-Z0-9_-]+)"/g);
-        if (depMatches) {
-          pyPkgs.push(
-            ...depMatches.map((m) => m.replace(/"/g, '').toLowerCase())
-          );
+        const depLines = tomlRaw.split(/\r?\n/).filter((line) => {
+          const trimmed = line.trim();
+          // Skip empty lines, section headers, and comments
+          if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('[')) {
+            return false;
+          }
+          return true;
+        });
+
+        // Known package names we care about
+        const knownPyNames = [
+          ...PY_FRAMEWORK_MAP.flatMap((r) => r.keys),
+          ...PY_TOOLS_MAP.flatMap((r) => r.keys),
+        ];
+
+        for (const line of depLines) {
+          for (const name of knownPyNames) {
+            // Match patterns like: "flask>=2.0", flask = "^2.0", "flask",
+            // flask = {version = "..."}
+            const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const pattern = new RegExp(
+              `(?:^|["'])${escaped}(?:["'\\s=<>!~,;\\[]|$)`,
+              'i'
+            );
+            if (pattern.test(line)) {
+              pyPkgs.push(name);
+            }
+          }
         }
       } catch {
         // ignore parse errors

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -57,10 +57,13 @@ const FRONTEND_OPTIONS = [
   "Vue",
   "Svelte",
   "HTML / CSS",
-  "None",
+  "React Native",
+  "Expo",
+  "Flutter",
+  "I'm not sure",
 ];
 
-const BACKEND_OPTIONS = ["Node.js", "Python", "Go", "Rust", "None"];
+const BACKEND_OPTIONS = ["Node.js", "Python", "Go", "Rust", "I'm not sure"];
 
 const DATABASE_OPTIONS = [
   "None yet",
@@ -137,7 +140,7 @@ function buildChecklist(
       id: "db-hosted",
       title: `Set up a hosted ${stack.database} database`,
       description: `You'll need a cloud-hosted ${stack.database} instance so your app can connect to it in production.`,
-      howTo: `1. Easy options: Railway, PlanetScale (MySQL), Neon (Postgres), or Supabase (Postgres).\n2. Create an account and provision a new database.\n3. Copy the connection string (it looks like ${stack.database === "PostgreSQL" ? "postgresql://user:pass@host:5432/db" : "mysql://user:pass@host:3306/db"}).\n4. Add it to your .env file as DATABASE_URL.\n5. Make sure your ORM or query builder is configured to read from DATABASE_URL.`,
+      howTo: `1. Easy options: Railway, Neon (free Postgres), or Supabase (free Postgres). For MySQL, try Railway or PlanetScale (paid only).\n2. Create an account and provision a new database.\n3. Copy the connection string (it looks like ${stack.database === "PostgreSQL" ? "postgresql://user:pass@host:5432/db" : "mysql://user:pass@host:3306/db"}).\n4. Add it to your .env file as DATABASE_URL.\n5. Make sure your ORM or query builder is configured to read from DATABASE_URL.`,
       checked: false,
     });
   } else if (stack.database === "MongoDB") {
@@ -147,7 +150,7 @@ function buildChecklist(
       description:
         "MongoDB Atlas is the easiest way to get a cloud-hosted MongoDB database.",
       howTo:
-        '1. Go to mongodb.com/atlas and sign up for a free cluster.\n2. Create a cluster (the free M0 tier is fine to start).\n3. Set up a database user and whitelist your IP (or 0.0.0.0/0 for development).\n4. Click "Connect" and copy the connection string.\n5. Install the driver: npm install mongodb (or mongoose for an ODM).\n6. Add the connection string to your .env as MONGODB_URI.',
+        '1. Go to mongodb.com/atlas and sign up for a free cluster.\n2. Create a cluster (the free M0 tier is fine to start).\n3. Set up a database user and whitelist your IP (or 0.0.0.0/0 for development).\n   \u26a0\ufe0f Warning: Only use 0.0.0.0/0 for development. In production, restrict to your server\'s IP address.\n4. Click "Connect" and copy the connection string.\n5. Install the driver: npm install mongodb (or mongoose for an ODM).\n6. Add the connection string to your .env as MONGODB_URI.',
       checked: false,
     });
   }
@@ -246,7 +249,7 @@ function buildChecklist(
       description:
         "A custom domain makes your app look professional (e.g., myapp.com instead of myapp.vercel.app).",
       howTo:
-        "1. Buy a domain from Namecheap, Google Domains, or Cloudflare (about $10/year).\n2. In your hosting provider's dashboard, go to Domains or Custom Domains.\n3. Add your domain and follow their DNS instructions.\n4. Usually you need to add a CNAME or A record at your domain registrar.\n5. Wait up to 48 hours for DNS to propagate (usually much faster).",
+        "1. Buy a domain from Namecheap, Cloudflare, or Squarespace Domains (about $10/year).\n2. In your hosting provider's dashboard, go to Domains or Custom Domains.\n3. Add your domain and follow their DNS instructions.\n4. Usually you need to add a CNAME or A record at your domain registrar.\n5. Wait up to 48 hours for DNS to propagate (usually much faster).",
       checked: false,
     });
   }
@@ -313,10 +316,10 @@ function generateClaudeMd(project: ProjectInfo, stack: StackInfo): string {
 
   lines.push("## Tech Stack");
   lines.push("");
-  if (stack.frontend && stack.frontend !== "None") {
+  if (stack.frontend && stack.frontend !== "I'm not sure") {
     lines.push(`- **Frontend:** ${stack.frontend}`);
   }
-  if (stack.backend && stack.backend !== "None") {
+  if (stack.backend && stack.backend !== "I'm not sure") {
     lines.push(`- **Backend:** ${stack.backend}`);
   }
   if (stack.database && stack.database !== "None yet") {
@@ -479,8 +482,18 @@ function generateClaudeMd(project: ProjectInfo, stack: StackInfo): string {
   return lines.join("\n");
 }
 
+function getPublicPrefix(stack: StackInfo): string {
+  if (stack.frontend === "Next.js") return "NEXT_PUBLIC_";
+  if (stack.frontend === "Vue" || stack.frontend === "Svelte") {
+    // Nuxt/Vite use VITE_, SvelteKit uses PUBLIC_
+    return stack.frontend === "Svelte" ? "PUBLIC_" : "VITE_";
+  }
+  return "";
+}
+
 function generateEnvExample(stack: StackInfo): string {
   const lines: string[] = [];
+  const pub = getPublicPrefix(stack);
 
   lines.push("# ===========================================");
   lines.push("# Environment Variables");
@@ -491,27 +504,27 @@ function generateEnvExample(stack: StackInfo): string {
   lines.push("");
 
   lines.push("# App");
-  lines.push("NEXT_PUBLIC_APP_URL=http://localhost:3000");
+  lines.push(`${pub}APP_URL=http://localhost:3000`);
   lines.push("");
 
   if (stack.database === "Supabase") {
     lines.push("# Supabase");
-    lines.push("NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url");
-    lines.push("NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key");
+    lines.push(`${pub}SUPABASE_URL=your_supabase_project_url`);
+    lines.push(`${pub}SUPABASE_ANON_KEY=your_supabase_anon_key`);
     lines.push("SUPABASE_SERVICE_ROLE_KEY=your_service_role_key");
     lines.push("");
   }
 
   if (stack.database === "Firebase") {
     lines.push("# Firebase");
-    lines.push("NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key");
-    lines.push("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com");
-    lines.push("NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id");
+    lines.push(`${pub}FIREBASE_API_KEY=your_api_key`);
+    lines.push(`${pub}FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com`);
+    lines.push(`${pub}FIREBASE_PROJECT_ID=your_project_id`);
     lines.push(
-      "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com"
+      `${pub}FIREBASE_STORAGE_BUCKET=your_project.appspot.com`
     );
-    lines.push("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id");
-    lines.push("NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id");
+    lines.push(`${pub}FIREBASE_MESSAGING_SENDER_ID=your_sender_id`);
+    lines.push(`${pub}FIREBASE_APP_ID=your_app_id`);
     lines.push("");
   }
 
@@ -556,7 +569,22 @@ function generateContributing(
   lines.push("");
   lines.push("### Prerequisites");
   lines.push("");
-  lines.push("- [Node.js](https://nodejs.org/) (v18 or later)");
+  const isPython = stack.backend === "Python";
+  const isGo = stack.backend === "Go";
+  const isRust = stack.backend === "Rust";
+  const isNodeBased = !isPython && !isGo && !isRust;
+  if (isNodeBased) {
+    lines.push("- [Node.js](https://nodejs.org/) (v18 or later)");
+  }
+  if (isPython) {
+    lines.push("- [Python](https://python.org/) (3.10 or later)");
+  }
+  if (isGo) {
+    lines.push("- [Go](https://go.dev/) (1.21 or later)");
+  }
+  if (isRust) {
+    lines.push("- [Rust](https://rustup.rs/) (latest stable)");
+  }
   lines.push("- [Git](https://git-scm.com/)");
   lines.push(
     "- A code editor ([VS Code](https://code.visualstudio.com/) recommended)"
@@ -579,15 +607,41 @@ function generateContributing(
   lines.push("git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git");
   lines.push("cd YOUR_REPO");
   lines.push("");
-  lines.push("# 2. Install dependencies");
-  lines.push("npm install");
+  if (isPython) {
+    lines.push("# 2. Create a virtual environment and install dependencies");
+    lines.push("python -m venv venv");
+    lines.push("source venv/bin/activate  # On Windows: venv\\Scripts\\activate");
+    lines.push("pip install -r requirements.txt");
+  } else if (isGo) {
+    lines.push("# 2. Install dependencies");
+    lines.push("go mod download");
+  } else if (isRust) {
+    lines.push("# 2. Build the project");
+    lines.push("cargo build");
+  } else {
+    lines.push("# 2. Install dependencies");
+    lines.push("npm install");
+  }
   lines.push("");
   lines.push("# 3. Set up environment variables");
   lines.push("cp .env.example .env.local");
   lines.push("# Then edit .env.local with your actual values");
   lines.push("");
-  lines.push("# 4. Start the development server");
-  lines.push("npm run dev");
+  if (isPython) {
+    lines.push("# 4. Start the development server");
+    lines.push("python manage.py runserver  # Django");
+    lines.push("# or: flask run             # Flask");
+    lines.push("# or: uvicorn main:app      # FastAPI");
+  } else if (isGo) {
+    lines.push("# 4. Start the development server");
+    lines.push("go run .");
+  } else if (isRust) {
+    lines.push("# 4. Start the development server");
+    lines.push("cargo run");
+  } else {
+    lines.push("# 4. Start the development server");
+    lines.push("npm run dev");
+  }
   lines.push("```");
   lines.push("");
 
@@ -603,8 +657,17 @@ function generateContributing(
 
   lines.push("## Code Style");
   lines.push("");
-  lines.push("- Use TypeScript for all new files");
-  lines.push("- Run `npm run lint` before committing");
+  if (isPython) {
+    lines.push("- Follow PEP 8 style guidelines");
+    lines.push("- Run your linter before committing");
+  } else if (isGo) {
+    lines.push("- Run `go fmt` and `go vet` before committing");
+  } else if (isRust) {
+    lines.push("- Run `cargo fmt` and `cargo clippy` before committing");
+  } else {
+    lines.push("- Use TypeScript for all new files");
+    lines.push("- Run `npm run lint` before committing");
+  }
   lines.push("- Keep components small and focused");
   lines.push("- Write descriptive commit messages");
   lines.push("");
@@ -632,7 +695,7 @@ function downloadFile(filename: string, content: string) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function downloadAllAsZip(
@@ -747,12 +810,12 @@ function downloadAllAsZip(
   const safeName = (project.projectName || "starter-kit")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+    .replace(/(^-|-$)/g, "") || "starter-kit";
   a.download = `${safeName}-starter-kit.zip`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // Simple CRC-32 implementation
@@ -831,17 +894,20 @@ function SelectField({
   onChange,
   options,
   placeholder,
+  id,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: string[];
   placeholder: string;
+  id: string;
 }) {
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium">{label}</label>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">{label}</label>
       <select
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
@@ -859,24 +925,30 @@ function SelectField({
 
 function StackOption({
   label,
+  helperText,
   options,
   selected,
   onSelect,
 }: {
   label: string;
+  helperText?: string;
   options: string[];
   selected: string;
   onSelect: (v: string) => void;
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium">{label}</label>
+      <label className="mb-1 block text-sm font-medium">{label}</label>
+      {helperText && (
+        <p className="mb-2 text-xs text-muted">{helperText}</p>
+      )}
       <div className="flex flex-wrap gap-2">
         {options.map((opt) => (
           <button
             key={opt}
             type="button"
             onClick={() => onSelect(opt)}
+            aria-pressed={selected === opt}
             className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
               selected === opt
                 ? "border-accent bg-accent/10 text-accent"
@@ -912,6 +984,8 @@ function ChecklistItemCard({
         <button
           type="button"
           onClick={() => onToggle(item.id)}
+          role="checkbox"
+          aria-checked={item.checked}
           className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
             item.checked
               ? "border-accent bg-accent text-white"
@@ -999,15 +1073,18 @@ function Step1({
     >
       <div className="space-y-6">
         <div>
-          <label className="mb-1.5 block text-sm font-medium">
+          <label htmlFor="project-name" className="mb-1.5 block text-sm font-medium">
             Project Name <span className="text-accent">*</span>
           </label>
           <input
+            id="project-name"
             type="text"
             value={project.projectName}
             onChange={(e) =>
               setProject((p) => ({ ...p, projectName: e.target.value }))
             }
+            aria-required="true"
+            required
             className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-foreground placeholder:text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             placeholder="My Awesome App"
           />
@@ -1015,6 +1092,7 @@ function Step1({
 
         <div className="grid gap-6 sm:grid-cols-2">
           <SelectField
+            id="ai-tool"
             label="How did you build it?"
             value={project.builtWith}
             onChange={(v) => setProject((p) => ({ ...p, builtWith: v }))}
@@ -1022,6 +1100,7 @@ function Step1({
             placeholder="Select your AI tool"
           />
           <SelectField
+            id="app-type"
             label="What kind of app is it?"
             value={project.appType}
             onChange={(v) => setProject((p) => ({ ...p, appType: v }))}
@@ -1031,10 +1110,11 @@ function Step1({
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium">
+          <label htmlFor="project-description" className="mb-1.5 block text-sm font-medium">
             Brief Description
           </label>
           <textarea
+            id="project-description"
             value={project.description}
             onChange={(e) =>
               setProject((p) => ({ ...p, description: e.target.value }))
@@ -1070,9 +1150,12 @@ function Step2({
       s.backend = "Node.js";
       s.hosting = "Vercel";
     } else if (project.appType === "API / Backend") {
-      s.frontend = "None";
+      s.frontend = "I'm not sure";
       s.backend = "Node.js";
       s.hosting = "Railway";
+    } else if (project.appType === "Mobile App") {
+      s.frontend = "Expo";
+      s.backend = "Node.js";
     }
     if (project.builtWith === "Bolt" || project.builtWith === "Lovable") {
       s.frontend = "React";
@@ -1088,9 +1171,11 @@ function Step2({
   const hasSuggestion =
     suggestion.frontend || suggestion.backend || suggestion.hosting;
 
+  const canAdvanceStep2 = stack.frontend !== "" || stack.backend !== "";
+
   return (
     <StepWrapper
-      title="What's your stack?"
+      title="What's your app built with?"
       subtitle="Pick the technologies your app uses. We've made some suggestions based on your answers."
     >
       {hasSuggestion && (
@@ -1113,7 +1198,7 @@ function Step2({
                 hosting: suggestion.hosting || s.hosting,
               }))
             }
-            className="mt-2 text-sm font-medium text-accent underline underline-offset-4 hover:text-accent-light"
+            className="mt-3 rounded-lg border border-accent bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/20"
           >
             Apply suggestions
           </button>
@@ -1123,29 +1208,39 @@ function Step2({
       <div className="space-y-6">
         <StackOption
           label="Frontend"
+          helperText="What users see in their browser"
           options={FRONTEND_OPTIONS}
           selected={stack.frontend}
           onSelect={(v) => setStack((s) => ({ ...s, frontend: v }))}
         />
         <StackOption
           label="Backend"
+          helperText="The server that powers your app"
           options={BACKEND_OPTIONS}
           selected={stack.backend}
           onSelect={(v) => setStack((s) => ({ ...s, backend: v }))}
         />
         <StackOption
           label="Database"
+          helperText="Where your app stores data"
           options={DATABASE_OPTIONS}
           selected={stack.database}
           onSelect={(v) => setStack((s) => ({ ...s, database: v }))}
         />
         <StackOption
           label="Hosting"
+          helperText="Where your app lives on the internet"
           options={HOSTING_OPTIONS}
           selected={stack.hosting}
           onSelect={(v) => setStack((s) => ({ ...s, hosting: v }))}
         />
       </div>
+
+      {!canAdvanceStep2 && (
+        <p className="mt-4 text-sm text-muted">
+          Pick at least a frontend or backend to continue
+        </p>
+      )}
     </StepWrapper>
   );
 }
@@ -1320,6 +1415,8 @@ export default function LaunchPage() {
     hosting: "",
   });
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const lastStackKeyRef = useRef("");
 
   const totalSteps = 4;
 
@@ -1331,12 +1428,26 @@ export default function LaunchPage() {
 
   const goNext = useCallback(() => {
     if (step === 1) {
-      // Build the checklist when moving from step 2 to step 3
-      setChecklist(buildChecklist(project, stack));
+      // Only rebuild checklist if the stack actually changed
+      const stackKey = JSON.stringify(stack);
+      if (stackKey !== lastStackKeyRef.current) {
+        const newItems = buildChecklist(project, stack);
+        // Preserve checked state from previous checklist if items match
+        const prevChecked = new Set(
+          checklist.filter((i) => i.checked).map((i) => i.id)
+        );
+        setChecklist(
+          newItems.map((item) => ({
+            ...item,
+            checked: prevChecked.has(item.id),
+          }))
+        );
+        lastStackKeyRef.current = stackKey;
+      }
     }
     setStep((s) => Math.min(s + 1, totalSteps - 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [step, project, stack]);
+  }, [step, project, stack, checklist]);
 
   const goBack = useCallback(() => {
     setStep((s) => Math.max(s - 1, 0));
@@ -1385,13 +1496,60 @@ export default function LaunchPage() {
               Work With Us
             </a>
           </div>
-          <a
-            href="/#intake"
-            className="rounded-lg bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent-light sm:hidden"
+          {/* Mobile hamburger */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted transition-colors hover:text-foreground sm:hidden"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
           >
-            Work With Us
-          </a>
+            {mobileMenuOpen ? (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="border-t border-border bg-background px-6 py-4 sm:hidden">
+            <div className="flex flex-col gap-4 text-sm">
+              <a
+                href="/#services"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-muted transition-colors hover:text-foreground"
+              >
+                Services
+              </a>
+              <a
+                href="/#about"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-muted transition-colors hover:text-foreground"
+              >
+                About
+              </a>
+              <a
+                href="/launch"
+                onClick={() => setMobileMenuOpen(false)}
+                className="font-medium text-accent transition-colors hover:text-accent-light"
+              >
+                Launch
+              </a>
+              <a
+                href="/#intake"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg bg-accent px-4 py-2 text-center text-white transition-colors hover:bg-accent-light"
+              >
+                Work With Us
+              </a>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero */}
@@ -1487,7 +1645,7 @@ export default function LaunchPage() {
           <p className="text-sm text-muted">
             &copy; {new Date().getFullYear()} Girl Code. All rights reserved.
           </p>
-          <p className="font-mono text-sm text-muted">girlcode.technology</p>
+          <a href="https://girlcode.technology" className="font-mono text-sm text-muted hover:text-foreground transition-colors">girlcode.technology</a>
         </div>
       </footer>
 
@@ -1499,6 +1657,12 @@ export default function LaunchPage() {
         }
         .animate-fadeIn {
           animation: fadeIn 0.4s ease-out;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-fadeIn {
+            animation: none;
+            opacity: 1;
+          }
         }
       `}</style>
     </div>

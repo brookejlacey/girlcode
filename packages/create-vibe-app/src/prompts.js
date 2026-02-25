@@ -139,10 +139,15 @@ export function select(question, options, defaultIndex = 0) {
       `\n  ${DIM}Enter a number (default: ${defaultIndex + 1}):${RESET} `,
       (answer) => {
         _pendingReject = null;
-        const num = parseInt(answer.trim(), 10);
+        const trimmed = answer.trim();
+        const num = parseInt(trimmed, 10);
         if (num >= 1 && num <= options.length) {
           resolve(options[num - 1]);
         } else {
+          // If the user typed something non-numeric, let them know we used the default
+          if (trimmed !== '' && isNaN(num)) {
+            console.log(`  ${DIM}Using default: ${options[defaultIndex]}${RESET}`);
+          }
           resolve(options[defaultIndex]);
         }
       }
@@ -151,6 +156,24 @@ export function select(question, options, defaultIndex = 0) {
 }
 
 // ── Composite prompt flows ──────────────────────────────────────────────
+
+/**
+ * Determine a deploy recommendation label based on detected frameworks.
+ */
+function deployRecommendation(detection) {
+  const fw = detection.frameworks || [];
+  if (fw.includes('Next.js')) {
+    return 'Vercel (recommended for Next.js — free tier!)';
+  }
+  const isPython =
+    detection.language === 'Python' ||
+    (detection.language && detection.language.includes('Python'));
+  if (isPython) {
+    return 'Railway (recommended for Python — free tier!)';
+  }
+  // Generic recommendation — no framework-specific wording
+  return 'Vercel (recommended — free tier!)';
+}
 
 /**
  * Run the full interactive interview. `detection` is the result from detect.js.
@@ -193,7 +216,7 @@ export async function runPrompts(detection) {
   if (needsDB) {
     database = await select('Which database provider?', [
       'Supabase (recommended — generous free tier!)',
-      'PlanetScale / MySQL',
+      'Turso / SQLite (free tier available)',
       'Neon / PostgreSQL',
       'MongoDB Atlas',
       'Firebase Firestore',
@@ -201,7 +224,7 @@ export async function runPrompts(detection) {
     ]);
     // Normalize
     if (database.startsWith('Supabase')) database = 'supabase';
-    else if (database.startsWith('PlanetScale')) database = 'planetscale';
+    else if (database.startsWith('Turso')) database = 'turso';
     else if (database.startsWith('Neon')) database = 'neon';
     else if (database.startsWith('MongoDB')) database = 'mongodb';
     else if (database.startsWith('Firebase')) database = 'firebase';
@@ -209,8 +232,9 @@ export async function runPrompts(detection) {
   }
 
   // ── Deploy target ──────────────────────────────────────────────────
+  const vercelLabel = deployRecommendation(detection);
   const deployTarget = await select('Where do you want to deploy?', [
-    'Vercel (recommended for Next.js — free tier!)',
+    vercelLabel,
     'Netlify',
     'Railway',
     'Fly.io',

@@ -21,6 +21,7 @@ const BOLD = '\x1b[1m';
 const DIM = '\x1b[2m';
 const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
+const RED = '\x1b[31m';
 const CYAN = '\x1b[36m';
 
 // ── Progress display ────────────────────────────────────────────────────
@@ -33,6 +34,33 @@ function fileSkipped(name, reason) {
   console.log(
     `  ${YELLOW}-${RESET} ${DIM}${name}${RESET} ${DIM}(${reason})${RESET}`
   );
+}
+
+/**
+ * Try to write a file. Returns true on success, false on failure.
+ * On failure, prints a user-friendly message and adds to skipped list.
+ */
+function safeWrite(filePath, content, filename, skipped) {
+  try {
+    writeFileSync(filePath, content, 'utf-8');
+    return true;
+  } catch (err) {
+    if (err.code === 'EACCES') {
+      console.log(
+        `  ${RED}!${RESET} ${CYAN}${filename}${RESET} ${RED}Permission denied — try running as administrator or check folder permissions.${RESET}`
+      );
+    } else if (err.code === 'ENOSPC') {
+      console.log(
+        `  ${RED}!${RESET} ${CYAN}${filename}${RESET} ${RED}Disk is full — free up some space and try again.${RESET}`
+      );
+    } else {
+      console.log(
+        `  ${RED}!${RESET} ${CYAN}${filename}${RESET} ${RED}Could not write: ${err.message}${RESET}`
+      );
+    }
+    skipped.push(filename);
+    return false;
+  }
 }
 
 // ── Main generator ──────────────────────────────────────────────────────
@@ -56,9 +84,10 @@ export function generateFiles(config, dir = process.cwd()) {
     fileSkipped('CLAUDE.md', 'already exists');
     skipped.push('CLAUDE.md');
   } else {
-    writeFileSync(claudePath, claudeMd(config), 'utf-8');
-    fileCreated('CLAUDE.md');
-    created.push('CLAUDE.md');
+    if (safeWrite(claudePath, claudeMd(config), 'CLAUDE.md', skipped)) {
+      fileCreated('CLAUDE.md');
+      created.push('CLAUDE.md');
+    }
   }
 
   // ── .env.example ────────────────────────────────────────────────────
@@ -67,9 +96,10 @@ export function generateFiles(config, dir = process.cwd()) {
     fileSkipped('.env.example', 'already exists');
     skipped.push('.env.example');
   } else {
-    writeFileSync(envPath, envExample(config), 'utf-8');
-    fileCreated('.env.example');
-    created.push('.env.example');
+    if (safeWrite(envPath, envExample(config), '.env.example', skipped)) {
+      fileCreated('.env.example');
+      created.push('.env.example');
+    }
   }
 
   // ── CONTRIBUTING.md ─────────────────────────────────────────────────
@@ -78,9 +108,10 @@ export function generateFiles(config, dir = process.cwd()) {
     fileSkipped('CONTRIBUTING.md', 'already exists');
     skipped.push('CONTRIBUTING.md');
   } else {
-    writeFileSync(contribPath, contributingMd(config), 'utf-8');
-    fileCreated('CONTRIBUTING.md');
-    created.push('CONTRIBUTING.md');
+    if (safeWrite(contribPath, contributingMd(config), 'CONTRIBUTING.md', skipped)) {
+      fileCreated('CONTRIBUTING.md');
+      created.push('CONTRIBUTING.md');
+    }
   }
 
   // ── .gitignore ──────────────────────────────────────────────────────
@@ -89,9 +120,10 @@ export function generateFiles(config, dir = process.cwd()) {
     fileSkipped('.gitignore', 'already exists');
     skipped.push('.gitignore');
   } else {
-    writeFileSync(giPath, gitignore(config), 'utf-8');
-    fileCreated('.gitignore');
-    created.push('.gitignore');
+    if (safeWrite(giPath, gitignore(config), '.gitignore', skipped)) {
+      fileCreated('.gitignore');
+      created.push('.gitignore');
+    }
   }
 
   console.log('');
