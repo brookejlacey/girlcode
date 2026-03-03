@@ -1,330 +1,567 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import IntakeForm from "@/components/IntakeForm";
 
-export default function Home() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+/* ── floating code symbols ──────────────────────────────────────── */
+const SYMBOLS = [
+  { t: "{ }",  x: "6%",  d: "0s",  dur: "38s", sz: "1.3rem" },
+  { t: "</>",  x: "17%", d: "5s",  dur: "42s", sz: "1.1rem" },
+  { t: "=>",   x: "28%", d: "12s", dur: "35s", sz: "1.5rem" },
+  { t: "//",   x: "41%", d: "2s",  dur: "40s", sz: "1rem"  },
+  { t: "()",   x: "55%", d: "8s",  dur: "37s", sz: "1.4rem" },
+  { t: "&&",   x: "66%", d: "15s", dur: "44s", sz: "1.1rem" },
+  { t: "[]",   x: "77%", d: "1s",  dur: "39s", sz: "1.3rem" },
+  { t: "fn",   x: "87%", d: "10s", dur: "41s", sz: "1rem"  },
+  { t: "::",   x: "34%", d: "7s",  dur: "36s", sz: "1.2rem" },
+  { t: "**",   x: "94%", d: "13s", dur: "43s", sz: "1.1rem" },
+];
+
+/* ── scroll-triggered reveal wrapper ────────────────────────────── */
+function Reveal({
+  children,
+  className = "",
+  delay = 0,
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          el.classList.add("visible");
+          io.unobserve(el);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   return (
-    <div className="min-h-screen font-sans">
-      {/* Nav */}
-      <nav className="fixed top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <a href="#" className="text-lg font-semibold tracking-tight">
-            girl code<span className="text-accent">.</span>
-          </a>
-          <div className="hidden items-center gap-8 text-sm sm:flex">
-            <a
-              href="#services"
-              className="text-muted transition-colors hover:text-foreground"
-            >
-              Services
-            </a>
-            <a
-              href="#about"
-              className="text-muted transition-colors hover:text-foreground"
-            >
-              About
-            </a>
-            <a
-              href="/launch"
-              className="text-muted transition-colors hover:text-foreground"
-            >
-              Launch
-            </a>
-            <a
-              href="#intake"
-              className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent-light"
-            >
-              Work With Us
-            </a>
-          </div>
-          {/* Mobile hamburger */}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((o) => !o)}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted transition-colors hover:text-foreground sm:hidden"
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={mobileMenuOpen}
+    <div
+      ref={ref}
+      className={`reveal ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ── page ────────────────────────────────────────────────────────── */
+export default function Home() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const heroRef = useRef<HTMLHeadingElement>(null);
+  const spotlightRef = useRef<HTMLDivElement>(null);
+
+  /* mouse tracking: hero parallax + cursor spotlight */
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      /* hero parallax */
+      if (heroRef.current) {
+        const x = e.clientX / window.innerWidth - 0.5;
+        const y = e.clientY / window.innerHeight - 0.5;
+        heroRef.current.style.setProperty("--px", `${x * -15}px`);
+        heroRef.current.style.setProperty("--py", `${y * -10}px`);
+      }
+      /* cursor spotlight */
+      if (spotlightRef.current) {
+        spotlightRef.current.style.left = `${e.clientX}px`;
+        spotlightRef.current.style.top = `${e.clientY}px`;
+      }
+    };
+    window.addEventListener("mousemove", handler, { passive: true });
+    return () => window.removeEventListener("mousemove", handler);
+  }, []);
+
+  return (
+    <div className="relative min-h-screen font-sans grain">
+      {/* ── animated mesh background ─────────────────────────────── */}
+      <div className="mesh-bg" aria-hidden="true">
+        <div className="blob blob-1" />
+        <div className="blob blob-2" />
+        <div className="blob blob-3" />
+        <div className="grid-overlay absolute inset-0" />
+      </div>
+
+      {/* ── floating code symbols ────────────────────────────────── */}
+      <div
+        className="fixed inset-0 z-[1] overflow-hidden pointer-events-none"
+        aria-hidden="true"
+      >
+        {SYMBOLS.map((s, i) => (
+          <span
+            key={i}
+            className="code-symbol"
+            style={{
+              left: s.x,
+              fontSize: s.sz,
+              animationDelay: s.d,
+              animationDuration: s.dur,
+            }}
           >
-            {mobileMenuOpen ? (
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
-          </button>
-        </div>
-        {/* Mobile dropdown menu */}
-        {mobileMenuOpen && (
-          <div className="border-t border-border bg-background px-6 py-4 sm:hidden">
-            <div className="flex flex-col gap-4 text-sm">
+            {s.t}
+          </span>
+        ))}
+      </div>
+
+      {/* ── cursor spotlight (desktop only) ──────────────────────── */}
+      <div
+        ref={spotlightRef}
+        className="pointer-events-none fixed z-[2] hidden h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full sm:block"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(139,92,246,0.07), transparent 70%)",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* ── content ──────────────────────────────────────────────── */}
+      <div className="relative z-10">
+        {/* ── nav ──────────────────────────────────────────────── */}
+        <nav className="fixed top-0 z-50 w-full p-3 sm:p-4">
+          <div className="glass mx-auto flex max-w-5xl items-center justify-between rounded-2xl px-5 py-3">
+            <a
+              href="#"
+              className="gradient-text text-lg font-semibold tracking-tight"
+            >
+              girl code<span className="period-glow">.</span>
+            </a>
+
+            <div className="hidden items-center gap-6 text-sm sm:flex">
               <a
                 href="#services"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-muted transition-colors hover:text-foreground"
+                className="nav-link text-muted-light transition-colors hover:text-foreground"
               >
                 Services
               </a>
               <a
                 href="#about"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-muted transition-colors hover:text-foreground"
+                className="nav-link text-muted-light transition-colors hover:text-foreground"
               >
                 About
               </a>
               <a
                 href="/launch"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-muted transition-colors hover:text-foreground"
+                className="nav-link text-muted-light transition-colors hover:text-foreground"
               >
                 Launch
               </a>
               <a
                 href="#intake"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg bg-accent px-4 py-2 text-center text-white transition-colors hover:bg-accent-light"
+                className="btn-gradient rounded-lg px-4 py-2 text-sm font-medium text-white"
               >
                 Work With Us
               </a>
             </div>
-          </div>
-        )}
-      </nav>
 
-      {/* Hero */}
-      <section className="flex min-h-screen flex-col items-center justify-center px-6 pt-20 text-center">
-        <div className="mx-auto max-w-3xl">
-          <p className="mb-4 font-mono text-sm uppercase tracking-widest text-accent">
-            Fractional Tech Leadership
-          </p>
-          <h1 className="mb-6 text-4xl font-bold leading-tight tracking-tight sm:text-6xl">
-            45+ years of engineering.
-            <br />
-            <span className="text-muted">Zero fluff.</span>
-          </h1>
-          <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-muted">
-            Girl Code is a fractional CTO and technical consulting partnership.
-            We bring full-time leadership and execution at a fraction of the
-            cost &mdash; because we&apos;ve already built it, broken it, and
-            shipped it.
-          </p>
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+            {/* mobile toggle */}
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-light transition-colors hover:text-foreground sm:hidden"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+            >
+              {menuOpen ? (
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
+
+          {/* mobile menu */}
+          {menuOpen && (
+            <div className="glass mx-3 mt-2 rounded-2xl p-5 sm:hidden">
+              <div className="flex flex-col gap-4 text-sm">
+                <a
+                  href="#services"
+                  onClick={() => setMenuOpen(false)}
+                  className="text-muted-light transition-colors hover:text-foreground"
+                >
+                  Services
+                </a>
+                <a
+                  href="#about"
+                  onClick={() => setMenuOpen(false)}
+                  className="text-muted-light transition-colors hover:text-foreground"
+                >
+                  About
+                </a>
+                <a
+                  href="/launch"
+                  onClick={() => setMenuOpen(false)}
+                  className="text-muted-light transition-colors hover:text-foreground"
+                >
+                  Launch
+                </a>
+                <a
+                  href="#intake"
+                  onClick={() => setMenuOpen(false)}
+                  className="btn-gradient rounded-lg px-4 py-2 text-center text-sm font-medium text-white"
+                >
+                  Work With Us
+                </a>
+              </div>
+            </div>
+          )}
+        </nav>
+
+        {/* ── hero ─────────────────────────────────────────────── */}
+        <section className="flex min-h-screen flex-col items-center justify-center px-6 pt-24 pb-20">
+          <Reveal className="text-center">
+            <p className="mb-8 font-mono text-xs uppercase tracking-[0.3em] text-muted-light sm:text-sm">
+              Fractional Tech Leadership
+            </p>
+          </Reveal>
+
+          <Reveal delay={150}>
+            <h1
+              ref={heroRef}
+              className="hero-title gradient-text mb-8 text-center text-5xl font-bold leading-[0.92] tracking-tighter sm:text-7xl md:text-8xl lg:text-[9rem]"
+            >
+              45 years.
+              <br />
+              Zero fluff.
+            </h1>
+          </Reveal>
+
+          <Reveal delay={300} className="mx-auto max-w-2xl text-center">
+            <p className="mb-12 text-base leading-relaxed text-muted-light sm:text-lg md:text-xl">
+              Girl Code is a fractional CTO and technical consulting partnership.
+              We bring full-time leadership and execution at a fraction of the
+              cost&mdash;because we&apos;ve already built it, broken it, and
+              shipped&nbsp;it.
+            </p>
+          </Reveal>
+
+          <Reveal
+            delay={450}
+            className="flex flex-col items-center gap-4 sm:flex-row"
+          >
             <a
               href="#intake"
-              className="rounded-lg bg-accent px-8 py-3.5 font-medium text-white transition-colors hover:bg-accent-light"
+              className="btn-gradient rounded-xl px-8 py-4 font-medium text-white"
             >
               Start a Conversation
             </a>
             <a
               href="#services"
-              className="rounded-lg border border-border px-8 py-3.5 font-medium transition-colors hover:bg-card"
+              className="btn-glass rounded-xl px-8 py-4 font-medium text-foreground"
             >
               See What We Do
             </a>
-          </div>
-        </div>
-      </section>
+          </Reveal>
+        </section>
 
-      {/* Services / Three Pillars */}
-      <section id="services" className="border-t border-border px-6 py-24">
-        <div className="mx-auto max-w-6xl">
-          <p className="mb-3 font-mono text-sm uppercase tracking-widest text-accent">
-            What We Do
-          </p>
-          <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-            Three arms. One mission.
-          </h2>
-          <p className="mb-16 max-w-2xl text-lg text-muted">
-            We build, we ship, and we tell the story. Girl Code operates across
-            consulting, development, and media &mdash; and every arm reinforces
-            the others.
-          </p>
+        {/* divider */}
+        <div className="section-divider mx-auto w-full max-w-5xl" />
 
-          <div className="grid gap-8 md:grid-cols-3">
-            {/* Consulting */}
-            <div className="group rounded-2xl border border-border bg-card p-8 transition-colors hover:border-accent/40">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10 font-mono text-xl text-accent">
-                &gt;_
-              </div>
-              <h3 className="mb-2 text-xl font-semibold">Consulting</h3>
-              <p className="mb-4 text-muted">
-                Fractional CTO and technical leadership for teams that need
-                senior engineering guidance without the full-time overhead.
+        {/* ── services ─────────────────────────────────────────── */}
+        <section id="services" className="px-6 py-24 sm:py-32">
+          <div className="mx-auto max-w-5xl">
+            <Reveal>
+              <p className="mb-3 font-mono text-xs uppercase tracking-[0.3em] text-accent-pink sm:text-sm">
+                What We Do
               </p>
-              <ul className="space-y-2 text-sm text-muted">
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  Architecture & system design
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  Team building & engineering culture
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  AI integration strategy
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  Web3 & blockchain consulting
-                </li>
-              </ul>
-            </div>
-
-            {/* App Development */}
-            <div className="group rounded-2xl border border-border bg-card p-8 transition-colors hover:border-accent/40">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10 font-mono text-xl text-accent">
-                {}
-              </div>
-              <h3 className="mb-2 text-xl font-semibold">Development</h3>
-              <p className="mb-4 text-muted">
-                Full-stack application development. We build products from zero
-                to launch, shipping fast without cutting corners.
-              </p>
-              <ul className="space-y-2 text-sm text-muted">
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  Web & mobile apps
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  AI-powered applications
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  Smart contracts & dApps
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  Hackathon projects & MVPs
-                </li>
-              </ul>
-            </div>
-
-            {/* Media */}
-            <div className="group rounded-2xl border border-border bg-card p-8 transition-colors hover:border-accent/40">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10 font-mono text-xl text-accent">
-                &#9654;
-              </div>
-              <h3 className="mb-2 text-xl font-semibold">Media</h3>
-              <p className="mb-4 text-muted">
-                Building in public. We document the journey through live
-                streams, podcasts, and social content &mdash; educating while we
-                ship.
-              </p>
-              <ul className="space-y-2 text-sm text-muted">
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  Weekly live streams
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  Girl Code podcast
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  Build-in-public content
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1 text-accent">&bull;</span>
-                  Tech education & community
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* About */}
-      <section id="about" className="border-t border-border px-6 py-24">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid gap-16 md:grid-cols-2">
-            <div>
-              <p className="mb-3 font-mono text-sm uppercase tracking-widest text-accent">
-                Who We Are
-              </p>
-              <h2 className="mb-6 text-3xl font-bold tracking-tight sm:text-4xl">
-                Two engineers.
+              <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-5xl">
+                Three arms.
                 <br />
-                One unfair advantage.
+                <span className="gradient-text">One mission.</span>
               </h2>
-              <p className="mb-4 text-lg text-muted">
-                Girl Code is Brooke Lacey and Nicki Sanders &mdash; a
-                partnership built on 45+ years of combined engineering
-                experience spanning full-stack development, blockchain, AI,
-                content creation, and technical leadership.
+              <p className="mb-16 max-w-2xl text-base text-muted-light sm:text-lg">
+                We build, we ship, and we tell the story. Girl Code operates
+                across consulting, development, and media&mdash;and every arm
+                reinforces the others.
               </p>
-              <p className="mb-4 text-lg text-muted">
-                We&apos;ve been indie developers, team leads, content creators,
-                and builders. We&apos;ve shipped products, won hackathons, and
-                led engineering teams. Now we&apos;re combining everything under
-                one roof.
-              </p>
-              <p className="text-lg text-muted">
-                Our unfair advantage? We build in public. You get to watch us
-                work, learn from our process, and see exactly how we think.
-                Transparency isn&apos;t a marketing play &mdash; it&apos;s how
-                we operate.
-              </p>
-            </div>
+            </Reveal>
 
-            <div className="flex flex-col justify-center space-y-8">
-              <div className="rounded-2xl border border-border bg-card p-6">
-                <p className="mb-1 text-3xl font-bold">45+</p>
-                <p className="text-muted">Years of combined experience</p>
+            <div className="space-y-2">
+              {/* Consulting */}
+              <Reveal delay={100}>
+                <div className="service-item group cursor-default rounded-2xl p-6 sm:p-8">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
+                    <span className="gradient-text flex-shrink-0 font-mono text-4xl font-bold sm:text-5xl">
+                      01
+                    </span>
+                    <div className="flex-1">
+                      <div className="gradient-line mb-4 w-full" />
+                      <h3 className="mb-2 text-xl font-semibold sm:text-2xl">
+                        Consulting
+                      </h3>
+                      <p className="mb-5 max-w-xl text-muted-light">
+                        Fractional CTO and technical leadership for teams that
+                        need senior engineering guidance without the full-time
+                        overhead.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          "Architecture & system design",
+                          "Team building & culture",
+                          "AI integration strategy",
+                          "Web3 & blockchain",
+                        ].map((t) => (
+                          <span
+                            key={t}
+                            className="rounded-full border border-glass-border bg-glass px-3 py-1 text-xs text-muted-light"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+
+              {/* Development */}
+              <Reveal delay={200}>
+                <div className="service-item group cursor-default rounded-2xl p-6 sm:p-8">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
+                    <span className="gradient-text flex-shrink-0 font-mono text-4xl font-bold sm:text-5xl">
+                      02
+                    </span>
+                    <div className="flex-1">
+                      <div className="gradient-line mb-4 w-full" />
+                      <h3 className="mb-2 text-xl font-semibold sm:text-2xl">
+                        Development
+                      </h3>
+                      <p className="mb-5 max-w-xl text-muted-light">
+                        Full-stack application development. We build products
+                        from zero to launch, shipping fast without cutting
+                        corners.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          "Web & mobile apps",
+                          "AI-powered applications",
+                          "Smart contracts & dApps",
+                          "Hackathon projects & MVPs",
+                        ].map((t) => (
+                          <span
+                            key={t}
+                            className="rounded-full border border-glass-border bg-glass px-3 py-1 text-xs text-muted-light"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+
+              {/* Media */}
+              <Reveal delay={300}>
+                <div className="service-item group cursor-default rounded-2xl p-6 sm:p-8">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
+                    <span className="gradient-text flex-shrink-0 font-mono text-4xl font-bold sm:text-5xl">
+                      03
+                    </span>
+                    <div className="flex-1">
+                      <div className="gradient-line mb-4 w-full" />
+                      <h3 className="mb-2 text-xl font-semibold sm:text-2xl">
+                        Media
+                      </h3>
+                      <p className="mb-5 max-w-xl text-muted-light">
+                        Building in public. We document the journey through live
+                        streams, podcasts, and social content&mdash;educating
+                        while we ship.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          "Weekly live streams",
+                          "Girl Code podcast",
+                          "Build-in-public content",
+                          "Tech education & community",
+                        ].map((t) => (
+                          <span
+                            key={t}
+                            className="rounded-full border border-glass-border bg-glass px-3 py-1 text-xs text-muted-light"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+
+        {/* divider */}
+        <div className="section-divider mx-auto w-full max-w-5xl" />
+
+        {/* ── about ────────────────────────────────────────────── */}
+        <section id="about" className="px-6 py-24 sm:py-32">
+          <div className="mx-auto max-w-5xl">
+            <div className="grid gap-12 md:grid-cols-5 md:gap-16">
+              <div className="md:col-span-3">
+                <Reveal>
+                  <p className="mb-3 font-mono text-xs uppercase tracking-[0.3em] text-accent-pink sm:text-sm">
+                    Who We Are
+                  </p>
+                  <h2 className="mb-8 text-3xl font-bold tracking-tight sm:text-5xl">
+                    Two engineers.
+                    <br />
+                    <span className="gradient-text">
+                      One unfair advantage.
+                    </span>
+                  </h2>
+                </Reveal>
+
+                <Reveal delay={150}>
+                  <p className="mb-5 text-base leading-relaxed text-muted-light sm:text-lg">
+                    Girl Code is{" "}
+                    <strong className="font-semibold text-foreground">
+                      Brooke Lacey
+                    </strong>{" "}
+                    and{" "}
+                    <strong className="font-semibold text-foreground">
+                      Nicki Sanders
+                    </strong>
+                    &mdash;a partnership built on 45+ years of combined
+                    engineering experience spanning full-stack development,
+                    blockchain, AI, content creation, and technical leadership.
+                  </p>
+                </Reveal>
+
+                <Reveal delay={250}>
+                  <p className="mb-5 text-base leading-relaxed text-muted-light sm:text-lg">
+                    We&apos;ve been indie developers, team leads, content
+                    creators, and builders. We&apos;ve shipped products, won
+                    hackathons, and led engineering teams. Now we&apos;re
+                    combining everything under one roof.
+                  </p>
+                </Reveal>
+
+                <Reveal delay={350}>
+                  <p className="text-base leading-relaxed text-muted-light sm:text-lg">
+                    Our unfair advantage?{" "}
+                    <span className="text-foreground">
+                      We build in public.
+                    </span>{" "}
+                    You get to watch us work, learn from our process, and see
+                    exactly how we think. Transparency isn&apos;t a marketing
+                    play&mdash;it&apos;s how we operate.
+                  </p>
+                </Reveal>
               </div>
-              <div className="rounded-2xl border border-border bg-card p-6">
-                <p className="mb-1 text-3xl font-bold">Full-stack</p>
-                <p className="text-muted">
-                  Web, mobile, blockchain, AI, infrastructure
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border bg-card p-6">
-                <p className="mb-1 text-3xl font-bold">Fractional</p>
-                <p className="text-muted">
-                  Senior leadership at a fraction of the cost
-                </p>
+
+              <div className="flex flex-col gap-4 md:col-span-2">
+                <Reveal delay={200}>
+                  <div className="stat-card rounded-2xl p-6">
+                    <p className="gradient-text mb-1 text-4xl font-bold">45+</p>
+                    <p className="text-sm text-muted-light">
+                      Years of combined experience
+                    </p>
+                  </div>
+                </Reveal>
+                <Reveal delay={300}>
+                  <div className="stat-card rounded-2xl p-6">
+                    <p className="gradient-text mb-1 text-4xl font-bold">
+                      Full&#8209;stack
+                    </p>
+                    <p className="text-sm text-muted-light">
+                      Web, mobile, blockchain, AI, infrastructure
+                    </p>
+                  </div>
+                </Reveal>
+                <Reveal delay={400}>
+                  <div className="stat-card rounded-2xl p-6">
+                    <p className="gradient-text mb-1 text-4xl font-bold">
+                      Fractional
+                    </p>
+                    <p className="text-sm text-muted-light">
+                      Senior leadership at a fraction of the cost
+                    </p>
+                  </div>
+                </Reveal>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTA / Intake Form */}
-      <section id="intake" className="border-t border-border px-6 py-24">
-        <div className="mx-auto max-w-3xl">
-          <p className="mb-3 font-mono text-sm uppercase tracking-widest text-accent">
-            Let&apos;s Talk
-          </p>
-          <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-            Start with a conversation.
-          </h2>
-          <p className="mb-10 text-lg text-muted">
-            Tell us about your project and we&apos;ll set up a discovery call.
-            No hard sell, no BS &mdash; just a real conversation about what you
-            need and whether we&apos;re the right fit.
-          </p>
+        {/* divider */}
+        <div className="section-divider mx-auto w-full max-w-5xl" />
 
-          <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
-            <IntakeForm />
+        {/* ── intake / CTA ─────────────────────────────────────── */}
+        <section id="intake" className="px-6 py-24 sm:py-32">
+          <div className="mx-auto max-w-3xl">
+            <Reveal>
+              <p className="mb-3 font-mono text-xs uppercase tracking-[0.3em] text-accent-pink sm:text-sm">
+                Let&apos;s Talk
+              </p>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-5xl">
+                Start with a
+                <br />
+                <span className="gradient-text">conversation.</span>
+              </h2>
+              <p className="mb-10 max-w-xl text-base text-muted-light sm:text-lg">
+                Tell us about your project and we&apos;ll set up a discovery
+                call. No hard sell, no BS&mdash;just a real conversation about
+                what you need and whether we&apos;re the right fit.
+              </p>
+            </Reveal>
+
+            <Reveal delay={200}>
+              <div className="glass rounded-2xl p-6 sm:p-10">
+                <IntakeForm />
+              </div>
+            </Reveal>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border px-6 py-12">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="text-sm text-muted">
-            &copy; {new Date().getFullYear()} Girl Code. All rights reserved.
-          </p>
-          <a href="https://girlcode.technology" className="font-mono text-sm text-muted hover:text-foreground transition-colors">girlcode.technology</a>
-        </div>
-      </footer>
+        {/* ── footer ───────────────────────────────────────────── */}
+        <footer className="border-t border-glass-border px-6 py-10">
+          <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 sm:flex-row">
+            <p className="text-xs text-muted sm:text-sm">
+              &copy; {new Date().getFullYear()} Girl Code. All rights reserved.
+            </p>
+            <a
+              href="https://girlcode.technology"
+              className="font-mono text-xs text-muted transition-colors hover:text-foreground sm:text-sm"
+            >
+              girlcode.technology
+            </a>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
